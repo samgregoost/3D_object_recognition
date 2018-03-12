@@ -51,6 +51,8 @@ rotation_matrix_three = tf.placeholder(tf.float32, shape=[3, 3], name="rot_mat_t
 trasformed_points_three = tf.matmul(raw_points_, rotation_matrix_three, name="trans_point_three")
 trasformed_points_three_reshaped = tf.reshape(trasformed_points_three, [-1, point_count, 3], name = "trans_point_three_reshape")
 
+########################################################################################
+
 trasformed_points_one_reshaped_ = tf.reshape(trasformed_points_one_reshaped, [-1, 3])
 
 point_distance_one = tf.reduce_sum(tf.square(trasformed_points_one_reshaped_), axis=1, keepdims = True)
@@ -66,6 +68,41 @@ scale_metric_tiled_one = tf.tile(scale_metric_one, [1, 3], name="cn_W_tiled")
 calibrated_points_one = tf.multiply(scale_metric_tiled_one, trasformed_points_one_reshaped_)
 
 
+
+trasformed_points_two_reshaped_ = tf.reshape(trasformed_points_two_reshaped, [-1, 3])
+
+point_distance_two = tf.reduce_sum(tf.square(trasformed_points_two_reshaped_), axis=1, keepdims = True)
+
+#point_distance_one = tf.reduce_sum(trasformed_points_one_reshaped_, axis=1, keepdims = True)
+
+scale_metric_two = tf.exp(-point_distance_two*0.0000001)
+
+#scale_metric_one = tf.multiply(point_distance_one,0.01)
+
+scale_metric_tiled_two = tf.tile(scale_metric_two, [1, 3], name="cn_W_tiled")
+
+calibrated_points_two = tf.multiply(scale_metric_tiled_two, trasformed_points_two_reshaped_)
+
+
+trasformed_points_three_reshaped_ = tf.reshape(trasformed_points_three_reshaped, [-1, 3])
+
+point_distance_three = tf.reduce_sum(tf.square(trasformed_points_three_reshaped_), axis=1, keepdims = True)
+
+#point_distance_one = tf.reduce_sum(trasformed_points_one_reshaped_, axis=1, keepdims = True)
+
+scale_metric_three = tf.exp(-point_distance_three*0.0000001)
+
+#scale_metric_one = tf.multiply(point_distance_one,0.01)
+
+scale_metric_tiled_three = tf.tile(scale_metric_three, [1, 3], name="cn_W_tiled")
+
+calibrated_points_three = tf.multiply(scale_metric_tiled_three, trasformed_points_three_reshaped_)
+
+calibrated_points_one_corrected_shape = tf.reshape(calibrated_points_one, [-1, point_count, 3])
+
+#########################################################################################
+
+
 def atan2(y, x):
     angle = tf.select(tf.greater(x,0.0), tf.atan(y/x), tf.zeros_like(x))
     angle = tf.select(tf.logical_and(tf.less(x,0.0),  tf.greater_equal(y,0.0)), tf.atan(y/x) + np.pi, angle)
@@ -76,14 +113,27 @@ def atan2(y, x):
     return angle
   
 
-r = tf.reduce_sum(tf.square(calibrated_points_one), axis=1, keepdims = True)
-theta = tf.acos(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r,0.001)))
-phi = tf.atan2(tf.expand_dims(calibrated_points_one[:,1],1),tf.expand_dims(calibrated_points_one[:,0],1))
+r_one = tf.reduce_sum(tf.square(calibrated_points_one), axis=1, keepdims = True)
+theta_one = tf.acos(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one,0.001)))
+phi_one = tf.atan2(tf.expand_dims(calibrated_points_one[:,1],1),tf.expand_dims(calibrated_points_one[:,0],1))
 
-polar_coordinates_one = tf.concat([r,theta, phi], axis=1)
+r_two = tf.reduce_sum(tf.square(calibrated_points_two), axis=1, keepdims = True)
+theta_two = tf.acos(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two,0.001)))
+phi_two = tf.atan2(tf.expand_dims(calibrated_points_two[:,1],1),tf.expand_dims(calibrated_points_two[:,0],1))
+
+r_three = tf.reduce_sum(tf.square(calibrated_points_three ), axis=1, keepdims = True)
+theta_three = tf.acos(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three,0.001)))
+phi_three  = tf.atan2(tf.expand_dims(calibrated_points_three [:,1],1),tf.expand_dims(calibrated_points_three [:,0],1))
 
 
-calibrated_points_one_corrected_shape = tf.reshape(calibrated_points_one, [-1, point_count, 3])
+r = tf.stack([r_one, r_two, r_three])
+theta = tf.stack([theta_one, theta_two, theta_three])
+phi = tf.stack([phi_one, phi_two, phi_three])
+# polar_coordinates_one = tf.concat([r,theta, phi], axis=1)
+
+
+
+
 
 # indices = tf.nn.top_k(calibrated_points_one_corrected_shape[:,:, 0], k=point_count).indices
 
@@ -136,26 +186,27 @@ v_3_3 = tf.multiply(y_3_3, tf.sin(3.0*phi))
 
 
 
-U = tf.concat([u_0_0,u_0_1,u_1_1,u_0_2,u_1_2, u_2_2, u_0_3,u_1_3,u_2_3,u_3_3] ,  axis=1)
-V = tf.concat([v_0_0,v_0_1,v_1_1,v_0_2,v_1_2, v_2_2, v_0_3,v_1_3,v_2_3,v_3_3] ,  axis=1)
+U = tf.concat([u_0_0,u_0_1,u_1_1,u_0_2,u_1_2, u_2_2, u_0_3,u_1_3,u_2_3,u_3_3] ,  axis=2)
+V = tf.concat([v_0_0,v_0_1,v_1_1,v_0_2,v_1_2, v_2_2, v_0_3,v_1_3,v_2_3,v_3_3] ,  axis=2)
 
+print(U)
 
 init_sigma = 0.01
 
 A_init = tf.random_normal(
-		  shape=(10,1),
+		  shape=(3, 10,1),
 		  stddev=init_sigma, dtype=tf.float32, name="cn_W_init")
 A = tf.Variable(A_init, name="cn_W")
 
 
 B_init = tf.random_normal(
-		  shape=(10,1),
+		  shape=(3, 10,1),
 		  stddev=init_sigma, dtype=tf.float32, name="cn_W_init")
 B = tf.Variable(B_init, name="cn_W")
 
 estimate = tf.matmul(U,A) + tf.matmul(V,B)
 
-
+print(B)
 
 loss_estimate = tf.losses.mean_squared_error(r, estimate)
 
@@ -164,7 +215,7 @@ grads = optimizer.compute_gradients(loss_estimate)
 train = optimizer.apply_gradients(grads)
 
 
-caps1_raw = tf.reshape(tf.stack([A, B]), [-1, 2, 10],
+caps1_raw = tf.reshape(tf.stack([A, B]), [-1, 6, 10],
                        name="caps1_raw")
 def squash(s, axis=-1, epsilon=1e-7, name=None):
     with tf.name_scope(name, default_name="squash"):
@@ -182,7 +233,7 @@ caps2_n_dims = 16
 
 
 W_init = tf.random_normal(
-    shape=(1, 2, 9, 16, 10),
+    shape=(1, 6, 9, 16, 10),
     stddev=init_sigma, dtype=tf.float32, name="W_init")
 W = tf.Variable(W_init, name="W")
 
@@ -203,7 +254,7 @@ caps2_predicted = tf.matmul(W_tiled, caps1_output_tiled,
  
 #########################################################
 
-raw_weights = tf.zeros([batch_size, 2, caps2_n_caps, 1, 1],
+raw_weights = tf.zeros([batch_size, 6, caps2_n_caps, 1, 1],
                        dtype=np.float32, name="raw_weights")
 
 # caps1_output_expanded = tf.expand_dims(caps1_output, -1,
@@ -221,10 +272,10 @@ caps2_output_round_1 = squash(weighted_sum, axis=-2,
                               name="caps2_output_round_1")
 
 
-:
+
 
 caps2_output_round_1_tiled = tf.tile(
-    caps2_output_round_1, [1, 2, 1, 1, 1],
+    caps2_output_round_1, [1, 6, 1, 1, 1],
     name="caps2_output_round_1_tiled")
 
 
@@ -278,11 +329,11 @@ caps2_output_norm = safe_norm(caps2_output, axis=-2, keep_dims=True,
 
 present_error_raw = tf.square(tf.maximum(0., m_plus - caps2_output_norm),
                               name="present_error_raw")
-present_error = tf.reshape(present_error_raw, shape=(-1, 10),
+present_error = tf.reshape(present_error_raw, shape=(-1, 9),
                            name="present_error")
 absent_error_raw = tf.square(tf.maximum(0., caps2_output_norm - m_minus),
                              name="absent_error_raw")
-absent_error = tf.reshape(absent_error_raw, shape=(-1, 10),
+absent_error = tf.reshape(absent_error_raw, shape=(-1, 9),
                           name="absent_error")
 
 L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
@@ -323,8 +374,7 @@ sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
 
-
-points = sess.run(caps2_output_round_1, feed_dict = {rotation_matrix_one:[[1, 2, 3], [4, 5, 6], [7, 8, 9]], raw_points_init:points})
+points = sess.run(U, feed_dict = {rotation_matrix_one:[[1, 2, 3], [4, 5, 6], [7, 8, 9]], rotation_matrix_two:[[1, 2, 3], [4, 5, 6], [7, 8, 9]], rotation_matrix_three:[[1, 2, 3], [4, 5, 6], [7, 8, 9]], raw_points_init:points})
 
 
 
