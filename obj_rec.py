@@ -189,33 +189,57 @@ v_3_3 = tf.multiply(y_3_3, tf.sin(3.0*phi))
 U = tf.concat([u_0_0,u_0_1,u_1_1,u_0_2,u_1_2, u_2_2, u_0_3,u_1_3,u_2_3,u_3_3] ,  axis=2)
 V = tf.concat([v_0_0,v_0_1,v_1_1,v_0_2,v_1_2, v_2_2, v_0_3,v_1_3,v_2_3,v_3_3] ,  axis=2)
 
+X = tf.concat([U,V] ,  axis=2)
 print(U)
 
+
+s, u, v = tf.svd(X, full_matrices = True)
+
+#r_temp = tf.slice(r, [0,0,0], [1,-1,-1])
+
+#u = tf.expand_dims(u, 1, name="cn_caps1_output_expanded")
+
+s = tf.expand_dims(s,2)
+
+print(s)
+print(u)
+print(v)
+print(r)
+
+
+
+B = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),r), [0,0,0], [-1,20,-1]),s))
+
+estimate = tf.matmul(X,B)
+print(estimate)
+#estimate_1 = tf.matmul(tf.transpose(u, perm=[0, 2, 1]),r_temp)
 init_sigma = 0.01
 
-A_init = tf.random_normal(
-		  shape=(3, 10,1),
-		  stddev=init_sigma, dtype=tf.float32, name="cn_W_init")
-A = tf.Variable(A_init, name="cn_W")
+# A_init = tf.random_normal(
+# 		  shape=(3, 10,1),
+# 		  stddev=init_sigma, dtype=tf.float32, name="cn_W_init")
+# A = tf.Variable(A_init, name="cn_W")
 
 
-B_init = tf.random_normal(
-		  shape=(3, 10,1),
-		  stddev=init_sigma, dtype=tf.float32, name="cn_W_init")
-B = tf.Variable(B_init, name="cn_W")
 
-estimate = tf.matmul(U,A) + tf.matmul(V,B)
 
-print(B)
+# B_init = tf.random_normal(
+# 		  shape=(3, 10,1),
+# 		  stddev=init_sigma, dtype=tf.float32, name="cn_W_init")
+# B = tf.Variable(B_init, name="cn_W")
 
-loss_estimate = tf.losses.mean_squared_error(r, estimate)
+# estimate = tf.matmul(U,A) + tf.matmul(V,B)
+
+# print(B)
+
+loss_estimate = tf.losses.absolute_difference(r, estimate)
 
 optimizer = tf.train.AdamOptimizer()
-grads = optimizer.compute_gradients(loss_estimate)
-train = optimizer.apply_gradients(grads)
+# grads = optimizer.compute_gradients(loss_estimate)
+# train = optimizer.apply_gradients(grads)
 
 
-caps1_raw = tf.reshape(tf.stack([A, B]), [-1, 6, 10],
+caps1_raw = tf.reshape(B, [-1, 6, 10],
                        name="caps1_raw")
 def squash(s, axis=-1, epsilon=1e-7, name=None):
     with tf.name_scope(name, default_name="squash"):
@@ -373,11 +397,21 @@ sess = tf.Session()
 # block_hankel = tf.slice(calibrated_points_one_corrected_shape, [0, 0, 0], [-1,10,-1])
 sess.run(tf.global_variables_initializer())
 
-
-points = sess.run(U, feed_dict = {rotation_matrix_one:[[1, 2, 3], [4, 5, 6], [7, 8, 9]], rotation_matrix_two:[[1, 2, 3], [4, 5, 6], [7, 8, 9]], rotation_matrix_three:[[1, 2, 3], [4, 5, 6], [7, 8, 9]], raw_points_init:points})
-
+points_ = sess.run(caps2_output, feed_dict = {rotation_matrix_one:[[1, 0, 0], [0, 1.0/math.sqrt(2), -1.0/math.sqrt(2)], [0, 1.0/math.sqrt(2), 1.0/math.sqrt(2)]], rotation_matrix_two:[[1, 0, 0], [0, 1.0/2, -math.sqrt(3)/2], [0, math.sqrt(3)/2, 1.0/2]], rotation_matrix_three:[[1, 0, 0], [0, math.sqrt(3)/2, -1.0/2], [0, 1.0/2, math.sqrt(3)/2]], raw_points_init:points})
 
 
 
-print(points)
+print(points_)
+
+
+# for itr in xrange(100000000):
+#             # train_images, train_annotations = train_dataset_reader.next_batch(FLAGS.batch_size)
+            
+            
+#             #sess.run(train,feed_dict = {rotation_matrix_one:[[1, 0, 0], [0, 1.0/math.sqrt(2), -1.0/math.sqrt(2)], [0, 1.0/math.sqrt(2), 1.0/math.sqrt(2)]], rotation_matrix_two:[[1, 0, 0], [0, 1.0/2, -math.sqrt(3)/2], [0, math.sqrt(3)/2, 1.0/2]], rotation_matrix_three:[[1, 0, 0], [0, math.sqrt(3)/2, -1.0/2], [0, 1.0/2, math.sqrt(3)/2]], raw_points_init:points})
+
+#             if itr % 1000 == 0:
+#                 train_loss = sess.run([loss_estimate], feed_dict = {rotation_matrix_one:[[1, 0, 0], [0, 1.0/math.sqrt(2), -1.0/math.sqrt(2)], [0, 1.0/math.sqrt(2), 1.0/math.sqrt(2)]], rotation_matrix_two:[[1, 0, 0], [0, 1.0/2, -math.sqrt(3)/2], [0, math.sqrt(3)/2, 1.0/2]], rotation_matrix_three:[[1, 0, 0], [0, math.sqrt(3)/2, -1.0/2], [0, 1.0/2, math.sqrt(3)/2]], raw_points_init:points})
+#                 print(train_loss)
+                
 
