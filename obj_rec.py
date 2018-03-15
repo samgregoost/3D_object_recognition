@@ -317,6 +317,7 @@ v_1_3 = tf.multiply(y_1_3, tf.sin(phi))
 v_2_3 = tf.multiply(y_2_3, tf.sin(2.0*phi))
 v_3_3 = tf.multiply(y_3_3, tf.sin(3.0*phi))
 
+r_modified = tf.cond(tf.shape(r)[1] >= 200, lambda: tf.slice(r, [0,0,0], [-1,200,-1]), lambda: tf.concat([r, tf.zeros([3,200-tf.shape(r)[1],1])], axis = 1))
 
 
 U = tf.concat([u_0_0,u_0_1,u_1_1,u_0_2,u_1_2, u_2_2, u_0_3,u_1_3,u_2_3,u_3_3] ,  axis=2)
@@ -343,10 +344,21 @@ print(r)
 
 
 
-B = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r,[0,0,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_1 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,0,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_2 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,20,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_3 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,40,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_4 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,60,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_5 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,80,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_6 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,100,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_7 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,120,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_8 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,140,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_9 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,160,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
+B_10 = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r_modified,[0,180,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
 
-estimate = tf.matmul(X,B)
-print(B)
+B = tf.concat([B_1, B_2, B_3, B_4, B_5, B_6, B_7, B_8, B_9, B_10], axis = 1)
+
+# estimate = tf.matmul(X,B)
+# print(B)
 #estimate_1 = tf.matmul(tf.transpose(u, perm=[0, 2, 1]),r_temp)
 init_sigma = 0.01
 
@@ -374,7 +386,7 @@ init_sigma = 0.01
 # train = optimizer.apply_gradients(grads)
 
 
-caps1_raw = tf.reshape(B, [-1, 6, 10],
+caps1_raw = tf.reshape(B, [-1, 60, 10],
                        name="caps1_raw")
 def squash(s, axis=-1, epsilon=1e-7, name=None):
     with tf.name_scope(name, default_name="squash"):
@@ -392,7 +404,7 @@ caps2_n_dims = 16
 
 
 W_init = tf.random_normal(
-    shape=(1, 6, 9, 16, 10),
+    shape=(1, 60, 9, 16, 10),
     stddev=init_sigma, dtype=tf.float32, name="W_init")
 W = tf.Variable(W_init, name="W")
 
@@ -413,7 +425,7 @@ caps2_predicted = tf.matmul(W_tiled, caps1_output_tiled,
  
 #########################################################
 
-raw_weights = tf.zeros([batch_size, 6, caps2_n_caps, 1, 1],
+raw_weights = tf.zeros([batch_size, 60, caps2_n_caps, 1, 1],
                        dtype=np.float32, name="raw_weights")
 
 # caps1_output_expanded = tf.expand_dims(caps1_output, -1,
@@ -434,7 +446,7 @@ caps2_output_round_1 = squash(weighted_sum, axis=-2,
 
 
 caps2_output_round_1_tiled = tf.tile(
-    caps2_output_round_1, [1, 6, 1, 1, 1],
+    caps2_output_round_1, [1, 60, 1, 1, 1],
     name="caps2_output_round_1_tiled")
 
 
@@ -508,8 +520,8 @@ sess = tf.Session()
 
 
 
-# def condition(x, i, index, axis):
-#     return tf.logical_and(tf.equal(x[0,i,0], index), tf.equal(x[0,i,2], axis))
+def condition(x, i, index, axis):
+    return tf.logical_and(tf.equal(x[0,i,0], index), tf.equal(x[0,i,2], axis))
   
   
 # test = condition(tf.constant([[[10, 20, 30]]]), 0, 20, 30)
@@ -517,11 +529,11 @@ sess = tf.Session()
 
 
 # i = tf.constant(0)
-# while_condition = lambda i: tf.less(i, tf.shape(reordered_calibrated_points_one_corrected_shape)[1])
+# while_condition = lambda i: tf.less(i, tf.shape(r_modified)[1]-20)
 # def body(i):
-#     x = tf.where(condition(reordered_calibrated_points_one_corrected_shape, i, ), a + 5000, a + b)
+#     x_concat = tf.slice(r_temp,[0,i,0],[-1,20,-1])
 #     # increment i
-#     return [tf.add(i, 1)]
+#     return [tf.add(i, 20)]
 
 # # do the loop:
 # r = tf.while_loop(while_condition, body, [i])
