@@ -12,43 +12,176 @@ print('Found GPU at: {}'.format(device_name))
 
 uploaded = files.upload()
 
-points_list = []
-points = np.array([[0, 0, 0]])
-for fn in uploaded.keys():
-  
-  data = uploaded[fn]
-  for line in data.splitlines():
     
-#   buf = StringIO.StringIO(data)
-#   buf.readline()
-#   buf.readline()
-    
-    
-    points_list = [float(s) for s in line.strip().split(' ')]
-
-    points = np.append(points,np.expand_dims(np.array(points_list), axis=0), axis = 0)
 
 
-print(points)
+
  
 
 raw_points_init = tf.placeholder(tf.float32, shape=[ None, 3], name="raw_points")
-raw_points = tf.expand_dims(raw_points_init, 0,
+
+centered_points = tf.subtract(raw_points_init, tf.reduce_mean(raw_points_init, axis = 0, keepdims = True))
+
+centered_points_expanded = tf.expand_dims(centered_points, 0,
 		                                     name="cn_caps1_output_expanded")
 
-raw_points_ = tf.reshape(raw_points, [-1, 3])
-point_count = tf.shape(raw_points)[1]
+adjoint_mat = tf.matmul(tf.transpose(centered_points_expanded, [0,2,1]), centered_points_expanded)
 
-rotation_matrix_one = tf.placeholder(tf.float32, shape=[3, 3], name="rot_mat_one")
-trasformed_points_one = tf.matmul(raw_points_, rotation_matrix_one, name="trans_point_one")
+e,ev = tf.self_adjoint_eig(adjoint_mat, name="eigendata")
+
+normal_vec = ev[:,:,2]
+normalized_normal_vec = tf.nn.l2_normalize(normal_vec, axis = 1)
+
+
+rot_theta = tf.acos(tf.matmul(normalized_normal_vec, tf.transpose(tf.constant([[0.0,0.0,1.0]]),[1,0])))
+
+b_vec = tf.nn.l2_normalize(tf.cross(tf.constant([[0.0,0.0,1.0]]), normalized_normal_vec), axis = 1)
+
+q0 = tf.cos(rot_theta/2.0)
+q1 = tf.sin(rot_theta/2.0) * b_vec[0,0]
+q2 = tf.sin(rot_theta/2.0) * b_vec[0,1]
+q3 = tf.sin(rot_theta/2.0) * b_vec[0,2]
+
+el_0_0 = tf.square(q0) + tf.square(q1) - tf.square(q2) - tf.square(q3)
+el_0_1 = 2*(q1*q2-q0*q3)
+el_0_2 = 2*(q1*q3+q0*q2)
+el_1_0 = 2*(q1*q2+q0*q3)
+el_1_1 = tf.square(q0) - tf.square(q1) + tf.square(q2) - tf.square(q3)
+el_1_2 = 2*(q2*q3+q0*q1)
+el_2_0 = 2*(q1*q3-q0*q2)
+el_2_1 = 2*(q2*q3+q0*q1)
+el_2_2 = tf.square(q0) - tf.square(q1) - tf.square(q2) + tf.square(q3)
+
+Q = tf.concat([tf.concat([el_0_0,el_0_1,el_0_2], axis = 1), tf.concat([el_1_0,el_1_1,el_1_2], axis = 1), tf.concat([el_2_0,el_2_1,el_2_2], axis = 1)], axis=0)
+
+u_ = tf.matmul(Q,tf.transpose(tf.constant([[1.0,0.0,0.0]]), [1,0]))
+v_ = tf.matmul(Q,tf.transpose(tf.constant([[0.0,1.0,0.0]]), [1,0]))
+w_ = tf.matmul(Q,tf.transpose(tf.constant([[0.0,0.0,1.0]]), [1,0]))
+
+transform_mat = tf.concat([u_,v_,w_], axis = 1)
+    
+transformed_coordinates = tf.matmul(centered_points,transform_mat)  
+
+mask = tf.greater(transformed_coordinates[:,2],0)
+
+points_from_side_one = tf.boolean_mask(transformed_coordinates, mask) 
+
+mask2 = tf.less(transformed_coordinates[:,2],0)
+
+points_from_side_two = tf.boolean_mask(transformed_coordinates, mask2) 
+
+
+indices_one_x = tf.nn.top_k(points_from_side_one[:,0], k=tf.shape(points_from_side_one)[0]).indices
+reordered_points_one_x = tf.gather(points_from_side_one, indices_one_x, axis=0)
+
+indices_two_x = tf.nn.top_k(points_from_side_two[:, 0], k=tf.shape(points_from_side_two)[0]).indices
+reordered_points_two_x = tf.gather(points_from_side_two, indices_two_x, axis=0)
+
+
+indices_one_y = tf.nn.top_k(points_from_side_one[:,1], k=tf.shape(points_from_side_one)[0]).indices
+reordered_points_one_y = tf.gather(points_from_side_one, indices_one_y, axis=0)
+
+indices_two_y = tf.nn.top_k(points_from_side_two[:, 1], k=tf.shape(points_from_side_two)[0]).indices
+reordered_points_two_y = tf.gather(points_from_side_two, indices_two_y, axis=0)
+
+
+
+
+
+input1_1_x = tf.expand_dims([reordered_points_one_x[:,2]],2)
+
+
+filter1_1_x = tf.get_variable("v_1", [6, 1, 10])
+
+output1_1_x = tf.nn.conv1d(input1_1_x, filter1_1_x, stride=2, padding="VALID")
+
+filter2_1_x = tf.get_variable("v_2", [3, 10, 20])
+
+output2_1_x = tf.nn.conv1d(output1_1_x, filter2_1_x, stride=2, padding="VALID")
+
+#output2_1_x = tf.cond(tf.shape(output2_1_x_temp)[1] >= 200, lambda: tf.slice(output2_1_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_x_temp, tf.zeros([1,200-tf.shape(output2_1_x_temp)[1],2])], axis = 1))
+
+
+input1_2_x = tf.expand_dims([reordered_points_two_x[:,2]],2)
+
+
+filter1_2_x = tf.get_variable("v_3", [6, 1, 10])
+
+output1_2_x = tf.nn.conv1d(input1_2_x, filter1_2_x, stride=2, padding="VALID")
+
+filter2_2_x = tf.get_variable("v_4", [3, 10, 20])
+
+output2_2_x= tf.nn.conv1d(output1_2_x, filter2_2_x, stride=2, padding="VALID")
+
+#output2_2_x = tf.cond(tf.shape(output2_2_x_temp)[1] >= 200, lambda: tf.slice(output2_2_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_2_x_temp, tf.zeros([1,200-tf.shape(output2_2_x_temp)[1],2])], axis = 1))
+
+
+
+input1_1_y = tf.expand_dims([reordered_points_one_y[:,2]],2)
+
+
+filter1_1_y = tf.get_variable("v_5", [6, 1, 10])
+
+output1_1_y = tf.nn.conv1d(input1_1_y, filter1_1_y, stride=2, padding="VALID")
+
+filter2_1_y = tf.get_variable("v_6", [3, 10, 20])
+
+output2_1_y = tf.nn.conv1d(output1_1_y, filter2_1_y, stride=2, padding="VALID")
+
+#output2_1_y = tf.cond(tf.shape(output2_1_y_temp)[1] >= 200, lambda: tf.slice(output2_1_y_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_y_temp, tf.zeros([1,200-tf.shape(output2_1_y_temp)[1],2])], axis = 1))
+
+
+
+
+input1_2_y = tf.expand_dims([reordered_points_two_y[:,2]],2)
+
+
+filter1_2_y = tf.get_variable("v_7", [6, 1, 10])
+
+output1_2_y = tf.nn.conv1d(input1_2_y, filter1_2_y, stride=2, padding="VALID")
+
+filter2_2_y = tf.get_variable("v_8", [3, 10, 20])
+
+output2_2_y = tf.nn.conv1d(output1_2_y, filter2_2_y, stride=2, padding="VALID")
+
+#output2_2_y = tf.cond(tf.shape(output2_2_y_temp)[1] >= 200, lambda: tf.slice(output2_2_y_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_2_y_temp, tf.zeros([1,200-tf.shape(output2_2_y_temp)[1],2])], axis = 1))
+
+
+side_1_descriptor = tf.matmul(tf.transpose(output2_1_x, [0,2,1]), output2_1_y)
+side_2_descriptor = tf.matmul(tf.transpose(output2_2_x, [0,2,1]), output2_2_y)
+
+print(side_1_descriptor)
+
+# concat_layer = tf.reshape(tf.concat([output2_1_x, output2_2_x, output2_1_y, output2_2_y], axis = 1), [1, 1600])
+concat_layer = tf.reshape(tf.concat([side_1_descriptor, side_2_descriptor], axis = 0), [1, 800])
+
+
+rot_angles = tf.layers.dense(concat_layer,27)
+#rot_angles_ = tf.reshape(rot_angles, [3,3,3])
+
+# rotation_matrix_one = tf.squeeze(tf.slice(rot_angles_, [0,0,0], [1,-1,-1]),squeeze_dims=[0])
+# rotation_matrix_two =  tf.squeeze(tf.slice(rot_angles_, [1,0,0], [1,-1,-1]),squeeze_dims=[0])
+# rotation_matrix_three =  tf.squeeze(tf.slice(rot_angles_, [2,0,0], [1,-1,-1]),squeeze_dims=[0])
+
+rotation_matrix_one = tf.concat([tf.constant([[1.0, 0.0, 0.0]]), [[0.0, tf.cos(rot_angles[0,0]), -tf.sin(rot_angles[0,0])]], [[0.0, tf.cos(rot_angles[0,0]), tf.sin(rot_angles[0,0])]]], axis = 0)
+rotation_matrix_two = tf.concat([[[tf.cos(rot_angles[0,1]), 0.0, tf.sin(rot_angles[0,1])]], [[0.0, 1.0, 0.0]], [[-tf.sin(rot_angles[0,1]), 0.0,tf.cos(rot_angles[0,1]) ]]], axis = 0)
+rotation_matrix_three = tf.concat([[[tf.cos(rot_angles[0,2]), -tf.sin(rot_angles[0,2]),0.0 ]], [[tf.sin(rot_angles[0,2]), tf.cos(rot_angles[0,2]), 0.0]], [[0.0, 0.0,1.0 ]]], axis = 0)
+
+print(rotation_matrix_one)
+
+centered_points_expanded_ = tf.reshape(transformed_coordinates, [-1, 3])
+point_count = tf.shape(centered_points_expanded_)[0]
+
+#rotation_matrix_one = tf.placeholder(tf.float32, shape=[3, 3], name="rot_mat_one")
+trasformed_points_one = tf.matmul(centered_points_expanded_, rotation_matrix_one, name="trans_point_one")
 trasformed_points_one_reshaped = tf.reshape(trasformed_points_one, [-1, point_count, 3], name = "trans_point_one_reshape")
 
-rotation_matrix_two = tf.placeholder(tf.float32, shape=[3, 3], name="rot_mat_two")
-trasformed_points_two = tf.matmul(raw_points_, rotation_matrix_two, name="trans_point_two")
+#rotation_matrix_two = tf.placeholder(tf.float32, shape=[3, 3], name="rot_mat_two")
+trasformed_points_two = tf.matmul(centered_points_expanded_, rotation_matrix_two, name="trans_point_two")
 trasformed_points_two_reshaped = tf.reshape(trasformed_points_two, [-1, point_count, 3], name = "trans_point_two_reshape")
 
-rotation_matrix_three = tf.placeholder(tf.float32, shape=[3, 3], name="rot_mat_three")
-trasformed_points_three = tf.matmul(raw_points_, rotation_matrix_three, name="trans_point_three")
+#rotation_matrix_three = tf.placeholder(tf.float32, shape=[3, 3], name="rot_mat_three")
+trasformed_points_three = tf.matmul(centered_points_expanded_, rotation_matrix_three, name="trans_point_three")
 trasformed_points_three_reshaped = tf.reshape(trasformed_points_three, [-1, point_count, 3], name = "trans_point_three_reshape")
 
 ########################################################################################
@@ -189,8 +322,10 @@ v_3_3 = tf.multiply(y_3_3, tf.sin(3.0*phi))
 U = tf.concat([u_0_0,u_0_1,u_1_1,u_0_2,u_1_2, u_2_2, u_0_3,u_1_3,u_2_3,u_3_3] ,  axis=2)
 V = tf.concat([v_0_0,v_0_1,v_1_1,v_0_2,v_1_2, v_2_2, v_0_3,v_1_3,v_2_3,v_3_3] ,  axis=2)
 
-X = tf.concat([U,V] ,  axis=2)
-print(U)
+X_ = tf.concat([U,V] ,  axis=2)
+X = tf.matmul(tf.transpose(X_,[0,2,1]), X_)
+
+print(X)
 
 
 s, u, v = tf.svd(X, full_matrices = True)
@@ -208,10 +343,10 @@ print(r)
 
 
 
-B = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),r), [0,0,0], [-1,20,-1]),s))
+B = tf.matmul(v,tf.divide(tf.slice(tf.matmul(tf.transpose(u, perm=[0, 2, 1]),tf.slice(r,[0,0,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s,[[[0.001]]])))
 
 estimate = tf.matmul(X,B)
-print(estimate)
+print(B)
 #estimate_1 = tf.matmul(tf.transpose(u, perm=[0, 2, 1]),r_temp)
 init_sigma = 0.01
 
@@ -232,9 +367,9 @@ init_sigma = 0.01
 
 # print(B)
 
-loss_estimate = tf.losses.absolute_difference(r, estimate)
+#loss_estimate = tf.losses.absolute_difference(r, estimate)
 
-optimizer = tf.train.AdamOptimizer()
+#optimizer = tf.train.AdamOptimizer()
 # grads = optimizer.compute_gradients(loss_estimate)
 # train = optimizer.apply_gradients(grads)
 
@@ -261,7 +396,7 @@ W_init = tf.random_normal(
     stddev=init_sigma, dtype=tf.float32, name="W_init")
 W = tf.Variable(W_init, name="W")
 
-batch_size = tf.shape(calibrated_points_one_corrected_shape)[0]
+batch_size = 1
 W_tiled = tf.tile(W, [batch_size, 1, 1, 1, 1], name="W_tiled")
 
 
@@ -363,9 +498,10 @@ absent_error = tf.reshape(absent_error_raw, shape=(-1, 9),
 L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
            name="L")
 
-margin_loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
+loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
 
-
+optimizer = tf.train.AdamOptimizer()
+training_op = optimizer.minimize(loss, name="training_op")
 
 sess = tf.Session()
 
@@ -397,12 +533,34 @@ sess = tf.Session()
 # block_hankel = tf.slice(calibrated_points_one_corrected_shape, [0, 0, 0], [-1,10,-1])
 sess.run(tf.global_variables_initializer())
 
-points_ = sess.run(caps2_output, feed_dict = {rotation_matrix_one:[[1, 0, 0], [0, 1.0/math.sqrt(2), -1.0/math.sqrt(2)], [0, 1.0/math.sqrt(2), 1.0/math.sqrt(2)]], rotation_matrix_two:[[1, 0, 0], [0, 1.0/2, -math.sqrt(3)/2], [0, math.sqrt(3)/2, 1.0/2]], rotation_matrix_three:[[1, 0, 0], [0, math.sqrt(3)/2, -1.0/2], [0, 1.0/2, math.sqrt(3)/2]], raw_points_init:points})
 
 
+def read_datapoint(data, fn):
+  points = np.array([[0, 0, 0]])
+  
+  for line in data.splitlines():
+    if 'OFF' != line.strip() and len([float(s) for s in line.strip().split(' ')]) == 3:
+        if "bathtub" in fn: 
+          y = [3]
+        points_list = [float(s) for s in line.strip().split(' ')]
+        points = np.append(points,np.expand_dims(np.array(points_list), axis=0), axis = 0)
+    
+  return points, y
 
-print(points_)
+saver = tf.train.Saver()
+#saver.restore(sess, "./model.ckpt")
 
+for fn in uploaded.keys():
+  data = uploaded[fn]
+  points, y_annot = read_datapoint(data, fn)
+  points_ = sess.run(tf.shape(caps2_output), feed_dict = {y:y_annot, raw_points_init:points})
+  print(points_)
+  #print(t)
+  loss_train = sess.run([ loss], feed_dict = {y:y_annot, raw_points_init:points})
+  print(loss_train)
+  
+  
+saver.save(sess, "./model.ckpt")
 
 # for itr in xrange(100000000):
 #             # train_images, train_annotations = train_dataset_reader.next_batch(FLAGS.batch_size)
