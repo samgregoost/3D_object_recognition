@@ -1,21 +1,13 @@
-import tensorflow as tf
-from google.colab import files
-import StringIO
 import numpy as np
 import math
-
+import os
 import tensorflow as tf
-device_name = tf.test.gpu_device_name()
-if device_name != '/device:GPU:0':
-  raise SystemError('GPU device not found')
-print('Found GPU at: {}'.format(device_name))
-
-uploaded = files.upload()
-
+import glob
     
 print(tf.__version__)
 
 
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
  
 
 raw_points_init = tf.placeholder(tf.float32, shape=[ None, 3], name="raw_points")
@@ -91,44 +83,44 @@ reordered_points_two_y = tf.gather(points_from_side_two, indices_two_y, axis=0)
 input1_1_x = tf.expand_dims([reordered_points_one_x[:,2]],2)
 
 
-filter1_1_x = tf.get_variable("v_1", [6, 1, 10])
+filter1_1_x = tf.get_variable("v_1", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0), trainable=False)
 
 output1_1_x = tf.nn.conv1d(input1_1_x, filter1_1_x, stride=2, padding="VALID")
 
-filter2_1_x = tf.get_variable("v_2", [3, 10, 20])
+filter2_1_x = tf.get_variable("v_2", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0),trainable=False)
 
-output2_1_x = tf.nn.conv1d(output1_1_x, filter2_1_x, stride=2, padding="VALID")
+output2_1_x_temp = tf.nn.conv1d(output1_1_x, filter2_1_x, stride=2, padding="VALID")
 
-#output2_1_x = tf.cond(tf.shape(output2_1_x_temp)[1] >= 200, lambda: tf.slice(output2_1_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_x_temp, tf.zeros([1,200-tf.shape(output2_1_x_temp)[1],2])], axis = 1))
+output2_1_x = tf.cond(tf.shape(output2_1_x_temp)[1] >= 200, lambda: tf.slice(output2_1_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_x_temp, tf.zeros([1,200-tf.shape(output2_1_x_temp)[1],20])], axis = 1))
 
 
 input1_2_x = tf.expand_dims([reordered_points_two_x[:,2]],2)
 
 
-filter1_2_x = tf.get_variable("v_3", [6, 1, 10])
+filter1_2_x = tf.get_variable("v_3", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0),trainable=False)
 
 output1_2_x = tf.nn.conv1d(input1_2_x, filter1_2_x, stride=2, padding="VALID")
 
-filter2_2_x = tf.get_variable("v_4", [3, 10, 20])
+filter2_2_x = tf.get_variable("v_4", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0),trainable=False)
 
-output2_2_x= tf.nn.conv1d(output1_2_x, filter2_2_x, stride=2, padding="VALID")
+output2_2_x_temp= tf.nn.conv1d(output1_2_x, filter2_2_x, stride=2, padding="VALID")
 
-#output2_2_x = tf.cond(tf.shape(output2_2_x_temp)[1] >= 200, lambda: tf.slice(output2_2_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_2_x_temp, tf.zeros([1,200-tf.shape(output2_2_x_temp)[1],2])], axis = 1))
+output2_2_x = tf.cond(tf.shape(output2_2_x_temp)[1] >= 200, lambda: tf.slice(output2_2_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_2_x_temp, tf.zeros([1,200-tf.shape(output2_2_x_temp)[1],20])], axis = 1))
 
 
 
 input1_1_y = tf.expand_dims([reordered_points_one_y[:,2]],2)
 
 
-filter1_1_y = tf.get_variable("v_5", [6, 1, 10])
+filter1_1_y = tf.get_variable("v_5", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0),trainable=False)
 
 output1_1_y = tf.nn.conv1d(input1_1_y, filter1_1_y, stride=2, padding="VALID")
 
-filter2_1_y = tf.get_variable("v_6", [3, 10, 20])
+filter2_1_y = tf.get_variable("v_6", [3, 10, 20],initializer=tf.random_normal_initializer(seed=0),trainable=False)
 
-output2_1_y = tf.nn.conv1d(output1_1_y, filter2_1_y, stride=2, padding="VALID")
+output2_1_y_temp = tf.nn.conv1d(output1_1_y, filter2_1_y, stride=2, padding="VALID")
 
-#output2_1_y = tf.cond(tf.shape(output2_1_y_temp)[1] >= 200, lambda: tf.slice(output2_1_y_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_y_temp, tf.zeros([1,200-tf.shape(output2_1_y_temp)[1],2])], axis = 1))
+output2_1_y = tf.cond(tf.shape(output2_1_y_temp)[1] >= 200, lambda: tf.slice(output2_1_y_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_y_temp, tf.zeros([1,200-tf.shape(output2_1_y_temp)[1],20])], axis = 1))
 
 
 
@@ -136,27 +128,27 @@ output2_1_y = tf.nn.conv1d(output1_1_y, filter2_1_y, stride=2, padding="VALID")
 input1_2_y = tf.expand_dims([reordered_points_two_y[:,2]],2)
 
 
-filter1_2_y = tf.get_variable("v_7", [6, 1, 10])
+filter1_2_y = tf.get_variable("v_7", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0),trainable=False)
 
 output1_2_y = tf.nn.conv1d(input1_2_y, filter1_2_y, stride=2, padding="VALID")
 
-filter2_2_y = tf.get_variable("v_8", [3, 10, 20])
+filter2_2_y = tf.get_variable("v_8", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0),trainable=False)
 
-output2_2_y = tf.nn.conv1d(output1_2_y, filter2_2_y, stride=2, padding="VALID")
+output2_2_y_temp = tf.nn.conv1d(output1_2_y, filter2_2_y, stride=2, padding="VALID")
 
-#output2_2_y = tf.cond(tf.shape(output2_2_y_temp)[1] >= 200, lambda: tf.slice(output2_2_y_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_2_y_temp, tf.zeros([1,200-tf.shape(output2_2_y_temp)[1],2])], axis = 1))
+output2_2_y = tf.cond(tf.shape(output2_2_y_temp)[1] >= 200, lambda: tf.slice(output2_2_y_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_2_y_temp, tf.zeros([1,200-tf.shape(output2_2_y_temp)[1],20])], axis = 1))
 
 
-side_1_descriptor = tf.matmul(tf.transpose(output2_1_x, [0,2,1]), output2_1_y)
-side_2_descriptor = tf.matmul(tf.transpose(output2_2_x, [0,2,1]), output2_2_y)
+#side_1_descriptor = tf.matmul(tf.transpose(output2_1_x, [0,2,1]), output2_1_y)
+#side_2_descriptor = tf.matmul(tf.transpose(output2_2_x, [0,2,1]), output2_2_y)
 
-print(side_1_descriptor)
+#print(side_1_descriptor)
 
 # concat_layer = tf.reshape(tf.concat([output2_1_x, output2_2_x, output2_1_y, output2_2_y], axis = 1), [1, 1600])
-concat_layer = tf.reshape(tf.concat([side_1_descriptor, side_2_descriptor], axis = 0), [1, 800])
+concat_layer = tf.reshape(tf.concat([output2_1_x ,output2_2_x,output2_1_y,output2_2_y ], axis = 0), [1, 16000])
 
 
-rot_angles = tf.layers.dense(concat_layer,27)
+rot_angles = tf.layers.dense(concat_layer,27, trainable=False)
 #rot_angles_ = tf.reshape(rot_angles, [3,3,3])
 
 # rotation_matrix_one = tf.squeeze(tf.slice(rot_angles_, [0,0,0], [1,-1,-1]),squeeze_dims=[0])
@@ -496,14 +488,11 @@ caps2_output = caps2_output_round_2
 
 
 
-
 def safe_norm(s, axis=-1, epsilon=1e-7, keep_dims=False, name=None):
     with tf.name_scope(name, default_name="safe_norm"):
         squared_norm = tf.reduce_sum(tf.square(s), axis=axis,
                                      keep_dims=keep_dims)
         return tf.sqrt(squared_norm + epsilon)
-
-
       
 y_proba = safe_norm(caps2_output, axis=-2, name="y_proba")
 y_proba_argmax = tf.argmax(y_proba, axis=2, name="y_proba")
@@ -515,7 +504,6 @@ m_minus = 0.1
 lambda_ = 0.5
 
 T = tf.one_hot(y, depth=caps2_n_caps, name="T")
-
 
 caps2_output_norm = safe_norm(caps2_output, axis=-2, keep_dims=True,
                               name="caps2_output_norm")
@@ -533,14 +521,17 @@ L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
            name="L")
 
 loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
-
-optimizer = tf.train.AdamOptimizer()
+optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0)
 training_op = optimizer.minimize(loss, name="training_op")
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+
+#gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+
+print('before_sess')
 sess = tf.Session()
-
-
-
+print('after_sess')
 
 def condition(x, i, index, axis):
     return tf.logical_and(tf.equal(x[0,i,0], index), tf.equal(x[0,i,2], axis))
@@ -569,13 +560,15 @@ sess.run(tf.global_variables_initializer())
 
 
 
-def read_datapoint(data, fn):
+def read_datapoint(data, filename):
   points = np.array([[0, 0, 0]])
   
-  for line in data.splitlines():
-    if 'OFF' != line.strip() and len([float(s) for s in line.strip().split(' ')]) == 3:
-        if "bathtub" in fn: 
-          y = [3]
+  for line in data:
+    if 'OFF' != line.strip() and len([float(s) for s in line.strip().split(' ')]) == 3: 
+        if 'bathtub' in filename:
+           y = [3]
+        else:
+           y=[1]
         points_list = [float(s) for s in line.strip().split(' ')]
         points = np.append(points,np.expand_dims(np.array(points_list), axis=0), axis = 0)
     
@@ -583,15 +576,15 @@ def read_datapoint(data, fn):
 
 saver = tf.train.Saver()
 #saver.restore(sess, "./model.ckpt")
-
-for fn in uploaded.keys():
-  data = uploaded[fn]
-  points, y_annot = read_datapoint(data, fn)
-  points_ = sess.run(tf.shape(caps2_output), feed_dict = {y:y_annot, raw_points_init:points})
-  print(points_)
+for filename in glob.glob(os.path.join('/home/ram095/sameera/3d_obj/code/3D_object_recognition/test/train/', '*.off')):
+	f = open(filename, 'r')
+	print(filename)
+	points, y_annot = read_datapoint(f, filename)
+	points_ = sess.run(caps2_output_norm, feed_dict = {y:y_annot, raw_points_init:points})
+	print(points_)
   #print(t)
-  loss_train = sess.run([ loss], feed_dict = {y:y_annot, raw_points_init:points})
-  print(loss_train)
+	_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points})
+	print(loss_train)
   
   
 saver.save(sess, "./model.ckpt")
