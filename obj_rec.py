@@ -238,16 +238,16 @@ def atan2(y, x):
     return angle
   
 
-r_one = tf.reduce_sum(tf.square(calibrated_points_one), axis=1, keepdims = True)
-theta_one = tf.acos(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one,0.001)))
+r_one = tf.sqrt(tf.reduce_sum(tf.square(calibrated_points_one), axis=1, keepdims = True))
+theta_one = tf.acos(tf.minimum((tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one,0.001))),0.98))
 phi_one = tf.atan2(tf.expand_dims(calibrated_points_one[:,1],1),tf.expand_dims(calibrated_points_one[:,0],1))
 
-r_two = tf.reduce_sum(tf.square(calibrated_points_two), axis=1, keepdims = True)
-theta_two = tf.acos(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two,0.001)))
+r_two = tf.sqrt(tf.reduce_sum(tf.square(calibrated_points_two), axis=1, keepdims = True))
+theta_two = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two,0.001)),0.98))
 phi_two = tf.atan2(tf.expand_dims(calibrated_points_two[:,1],1),tf.expand_dims(calibrated_points_two[:,0],1))
 
-r_three = tf.reduce_sum(tf.square(calibrated_points_three ), axis=1, keepdims = True)
-theta_three = tf.acos(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three,0.001)))
+r_three = tf.sqrt(tf.reduce_sum(tf.square(calibrated_points_three ), axis=1, keepdims = True))
+theta_three = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three,0.001)),0.98))
 phi_three  = tf.atan2(tf.expand_dims(calibrated_points_three [:,1],1),tf.expand_dims(calibrated_points_three [:,0],1))
 
 
@@ -391,18 +391,24 @@ B = tf.Variable(B_init, name="cn_B")
 
 estimate = tf.matmul(U,A) + tf.matmul(V,B)
 
-# print(B)
+print(r)
 
-loss_estimate = tf.losses.absolute_difference(r, estimate)
 
-optimizer_1 = tf.train.AdamOptimizer()
-grads = optimizer_1.compute_gradients(loss_estimate )
+
+#loss_estimate = tf.reduce_sum(tf.subtract(r,estimate))
+loss_estimate = (tf.losses.absolute_difference(tf.expand_dims(r, 0), tf.expand_dims(estimate,0)))
+optimizer_1 = tf.train.AdamOptimizer(learning_rate = 0.01)
+grads = optimizer_1.compute_gradients(loss_estimate, var_list= [A,B])
 train = optimizer_1.apply_gradients(grads)
 
 caps1_dim = 10
 caps1_caps = 6
 
-caps1_raw = tf.reshape(tf.concat([A,B],axis = 1), [-1, caps1_caps, caps1_dim],
+A_in = tf.placeholder(tf.float32, shape=(3,10,1))
+B_in = tf.placeholder(tf.float32, shape=(3,10,1))
+
+
+caps1_raw = tf.reshape(tf.concat([A_in,B_in],axis = 1), [-1, caps1_caps, caps1_dim],
                        name="caps1_raw")
 def squash(s, axis=-1, epsilon=1e-7, name=None):
     with tf.name_scope(name, default_name="squash"):
@@ -523,9 +529,10 @@ L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
            name="L")
 
 loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
-optimizer = tf.train.AdamOptimizer(learning_rate=0.1)
-gradients = optimizer.compute_gradients(loss, var_list = [W,A,B])
-training_op = optimizer.minimize(loss, name="training_op")
+#ptimizer = tf.train.AdamOptimizer(learning_rate=0.1)
+#gradients = optimizer.compute_gradients(loss, var_list = [W,A,B])
+#raining_op = optimizer.minimize(loss, var_list = [W], name="training_op")
+#training_op = optimizer.apply_gradients(gradients)
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -583,10 +590,24 @@ for filename in glob.glob(os.path.join('/home/ram095/sameera/3d_obj/code/3D_obje
 	f = open(filename, 'r')
 	print(filename)
 	points, y_annot = read_datapoint(f, filename)
-	points_ = sess.run(gradients, feed_dict = {y:y_annot, raw_points_init:points})
+	
+	for i in range(1000):
+		C =  sess.run(loss_estimate, feed_dict = {raw_points_init:points})
+                
+		
+		print(i)
+		print(C)
+
+		_= sess.run(train, feed_dict = {raw_points_init:points})
+		
+	
+	A,B =  sess.run([A,B], feed_dict = {raw_points_init:points})
+
+
+	points_ = sess.run(W, feed_dict = {y:y_annot, raw_points_init:points, A_in:A, B_in:B})
 	print(points_)
   #print(t)
-	_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points})
+	_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points,  A_in:A, B_in:B})
 	print(loss_train)
   
   
