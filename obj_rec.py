@@ -180,48 +180,48 @@ trasformed_points_three_reshaped = tf.reshape(trasformed_points_three, [-1, poin
 
 trasformed_points_one_reshaped_ = tf.reshape(trasformed_points_one_reshaped, [-1, 3])
 
-point_distance_one = tf.reduce_sum(tf.square(trasformed_points_one_reshaped_), axis=1, keepdims = True)
+#point_distance_one = tf.reduce_sum(tf.square(trasformed_points_one_reshaped_), axis=1, keepdims = True)
 
 #point_distance_one = tf.reduce_sum(trasformed_points_one_reshaped_, axis=1, keepdims = True)
 
-scale_metric_one = tf.exp(-point_distance_one*0.0000001)
+#scale_metric_one = tf.exp(-point_distance_one*0.0000001)
 
 #scale_metric_one = tf.multiply(point_distance_one,0.01)
 
-scale_metric_tiled_one = tf.tile(scale_metric_one, [1, 3], name="cn_W_tiled")
+#scale_metric_tiled_one = tf.tile(scale_metric_one, [1, 3], name="cn_W_tiled")
 
-calibrated_points_one = tf.multiply(scale_metric_tiled_one, trasformed_points_one_reshaped_)
+calibrated_points_one = trasformed_points_one_reshaped_ 
 
 
 
 trasformed_points_two_reshaped_ = tf.reshape(trasformed_points_two_reshaped, [-1, 3])
 
-point_distance_two = tf.reduce_sum(tf.square(trasformed_points_two_reshaped_), axis=1, keepdims = True)
+#point_distance_two = tf.reduce_sum(tf.square(trasformed_points_two_reshaped_), axis=1, keepdims = True)
 
 #point_distance_one = tf.reduce_sum(trasformed_points_one_reshaped_, axis=1, keepdims = True)
 
-scale_metric_two = tf.exp(-point_distance_two*0.0000001)
+#scale_metric_two = tf.exp(-point_distance_two*0.0000001)
 
 #scale_metric_one = tf.multiply(point_distance_one,0.01)
 
-scale_metric_tiled_two = tf.tile(scale_metric_two, [1, 3], name="cn_W_tiled")
+#scale_metric_tiled_two = tf.tile(scale_metric_two, [1, 3], name="cn_W_tiled")
 
-calibrated_points_two = tf.multiply(scale_metric_tiled_two, trasformed_points_two_reshaped_)
+calibrated_points_two = trasformed_points_two_reshaped_
 
 
 trasformed_points_three_reshaped_ = tf.reshape(trasformed_points_three_reshaped, [-1, 3])
 
-point_distance_three = tf.reduce_sum(tf.square(trasformed_points_three_reshaped_), axis=1, keepdims = True)
+#point_distance_three = tf.reduce_sum(tf.square(trasformed_points_three_reshaped_), axis=1, keepdims = True)
 
 #point_distance_one = tf.reduce_sum(trasformed_points_one_reshaped_, axis=1, keepdims = True)
 
-scale_metric_three = tf.exp(-point_distance_three*0.0000001)
+#scale_metric_three = tf.exp(-point_distance_three*0.0000001)
 
 #scale_metric_one = tf.multiply(point_distance_one,0.01)
 
-scale_metric_tiled_three = tf.tile(scale_metric_three, [1, 3], name="cn_W_tiled")
+#scale_metric_tiled_three = tf.tile(scale_metric_three, [1, 3], name="cn_W_tiled")
 
-calibrated_points_three = tf.multiply(scale_metric_tiled_three, trasformed_points_three_reshaped_)
+calibrated_points_three = trasformed_points_three_reshaped_
 
 calibrated_points_one_corrected_shape = tf.reshape(calibrated_points_one, [-1, point_count, 3])
 
@@ -413,12 +413,12 @@ def squash(s, axis=-1, epsilon=1e-7, name=None):
       
 caps1_output = squash(caps1_raw, name="caps1_output")
 
-caps2_n_caps = 9
+caps2_n_caps = 2
 caps2_n_dims = 16
 
 
 W_init = tf.random_normal(
-    shape=(1, 60, 9, 16, 10),
+    shape=(1, 60, 2, 16, 10),
     stddev=init_sigma, dtype=tf.float32, name="W_init")
 W = tf.Variable(W_init, name="W")
 
@@ -505,23 +505,25 @@ lambda_ = 0.5
 
 T = tf.one_hot(y, depth=caps2_n_caps, name="T")
 
-caps2_output_norm = safe_norm(caps2_output, axis=-2, keep_dims=True,
-                              name="caps2_output_norm")
+caps2_output_norm = tf.reshape(safe_norm(caps2_output, axis=-2, keep_dims=True,
+                              name="caps2_output_norm"), [-1,2])
 
-present_error_raw = tf.square(tf.maximum(0., m_plus - caps2_output_norm),
-                              name="present_error_raw")
-present_error = tf.reshape(present_error_raw, shape=(-1, 9),
-                           name="present_error")
-absent_error_raw = tf.square(tf.maximum(0., caps2_output_norm - m_minus),
-                             name="absent_error_raw")
-absent_error = tf.reshape(absent_error_raw, shape=(-1, 9),
-                          name="absent_error")
+#present_error_raw = tf.square(tf.maximum(0., m_plus - caps2_output_norm),
+#                              name="present_error_raw")
+#present_error = tf.reshape(present_error_raw, shape=(-1, caps2_n_caps),
+#                           name="present_error")
+#absent_error_raw = tf.square(tf.maximum(0., caps2_output_norm - m_minus),
+#                             name="absent_error_raw")
+#absent_error = tf.reshape(absent_error_raw, shape=(-1,  caps2_n_caps),
+#                          name="absent_error")
 
-L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
-           name="L")
+#L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
+#           name="L")
 
-loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
-optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0)
+
+loss = tf.losses.softmax_cross_entropy(T,caps2_output_norm)
+#loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
+optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.00001)
 training_op = optimizer.minimize(loss, name="training_op")
 
 config = tf.ConfigProto()
