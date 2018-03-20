@@ -242,7 +242,7 @@ def atan2(y, x):
 
 r_one_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_one), axis=1, keepdims = True))
 r_one = tf.divide(r_one_temp,tf.reduce_max(r_one_temp, axis = 0, keep_dims = True))
-theta_one = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one,0.001)), 0.99))
+theta_one = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one_temp,0.001)),0.99),-0.99))
 phi_one = tf.atan2(tf.expand_dims(calibrated_points_one[:,1],1),tf.expand_dims(calibrated_points_one[:,0],1))
 
 
@@ -250,15 +250,16 @@ r_two_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1,
 r_two = tf.divide(r_two_temp,tf.reduce_max(r_two_temp, axis = 0, keep_dims = True))
 
 #r_two = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1, keepdims = True))
-theta_two = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two,0.001)), 0.99))
+theta_two = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two_temp,0.001)),0.99),-0.99))
 phi_two = tf.atan2(tf.expand_dims(calibrated_points_two[:,1],1),tf.expand_dims(calibrated_points_two[:,0],1))
 
 r_three_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
 r_three = tf.divide(r_three_temp,tf.reduce_max(r_three_temp, axis = 0, keep_dims = True))
 
 #r_three = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
-theta_three = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three,0.001)), 0.99))
+theta_three = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three_temp,0.001)),0.99),-0.99))
 phi_three  = tf.atan2(tf.expand_dims(calibrated_points_three [:,1],1),tf.expand_dims(calibrated_points_three [:,0],1))
+
 
 
 r = tf.stack([r_one, r_two, r_three])
