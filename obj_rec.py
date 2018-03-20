@@ -225,8 +225,10 @@ calibrated_points_three = trasformed_points_three_reshaped_
 
 calibrated_points_one_corrected_shape = tf.reshape(calibrated_points_one, [-1, point_count, 3])
 
-#########################################################################################
 
+centered_calib_points_one = tf.subtract(calibrated_points_one,tf.reduce_mean(calibrated_points_one,axis=0,keep_dims=True))
+centered_calib_points_two = tf.subtract(calibrated_points_two,tf.reduce_mean(calibrated_points_two,axis=0,keep_dims=True))
+centered_calib_points_three = tf.subtract(calibrated_points_three,tf.reduce_mean(calibrated_points_three,axis=0,keep_dims=True))
 
 def atan2(y, x):
     angle = tf.select(tf.greater(x,0.0), tf.atan(y/x), tf.zeros_like(x))
@@ -236,20 +238,30 @@ def atan2(y, x):
     angle = tf.select(tf.logical_and(tf.equal(x,0.0), tf.less(y,0.0)), -0.5*np.pi * tf.ones_like(x), angle)
     angle = tf.select(tf.logical_and(tf.equal(x,0.0), tf.equal(y,0.0)), np.nan * tf.zeros_like(x), angle)
     return angle
-  
 
-r_one = tf.sqrt(tf.reduce_sum(tf.square(calibrated_points_one), axis=1, keepdims = True))
+
+r_one_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_one), axis=1, keepdims = True))
+r_one = tf.divide(r_one_temp,tf.reduce_max(r_one_temp, axis = 0, keep_dims = True))
 theta_one = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one,0.001)), 0.99))
 phi_one = tf.atan2(tf.expand_dims(calibrated_points_one[:,1],1),tf.expand_dims(calibrated_points_one[:,0],1))
 
-r_two = tf.sqrt(tf.reduce_sum(tf.square(calibrated_points_two), axis=1, keepdims = True))
+
+r_two_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1, keepdims = True))
+r_two = tf.divide(r_two_temp,tf.reduce_max(r_two_temp, axis = 0, keep_dims = True))
+
+#r_two = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1, keepdims = True))
 theta_two = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two,0.001)), 0.99))
 phi_two = tf.atan2(tf.expand_dims(calibrated_points_two[:,1],1),tf.expand_dims(calibrated_points_two[:,0],1))
 
-r_three = tf.sqrt(tf.reduce_sum(tf.square(calibrated_points_three ), axis=1, keepdims = True))
+r_three_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
+r_three = tf.divide(r_three_temp,tf.reduce_max(r_three_temp, axis = 0, keep_dims = True))
+
+#r_three = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
 theta_three = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three,0.001)), 0.99))
 phi_three  = tf.atan2(tf.expand_dims(calibrated_points_three [:,1],1),tf.expand_dims(calibrated_points_three [:,0],1))
 
+
+########################################################################################
 
 r = tf.stack([r_one, r_two, r_three])
 theta = tf.stack([theta_one, theta_two, theta_three])
