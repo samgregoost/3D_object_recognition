@@ -388,7 +388,7 @@ X_0  = tf.multiply(alpha_tiled,tf.transpose(x_rehape,[0,1,3,2] ))
 #    (X_0, 0))
 
 
-X_cal, p = tf.while_loop(lambda x, i: i < 5,
+X_cal, p = tf.while_loop(lambda x, i: i < 10,
     lambda x, i:( tf.matmul( tf.eye(20) + 1.0/4.0 * tf.matmul(tf.eye(20)-tf.matmul(x,x_rehape),tf.matmul(3.0*tf.eye(20)-tf.matmul(x,x_rehape),3.0*tf.eye(20)-tf.matmul(x,x_rehape))),x), i+1),
     (X_0, 0))
 
