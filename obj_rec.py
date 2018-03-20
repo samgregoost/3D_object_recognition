@@ -83,11 +83,11 @@ reordered_points_two_y = tf.gather(points_from_side_two, indices_two_y, axis=0)
 input1_1_x = tf.expand_dims([reordered_points_one_x[:,2]],2)
 
 
-filter1_1_x = tf.get_variable("v_1", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0), trainable=True)
+filter1_1_x = tf.get_variable("v_1", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0))#, trainable=True)
 
 output1_1_x = tf.nn.conv1d(input1_1_x, filter1_1_x, stride=2, padding="VALID")
 
-filter2_1_x = tf.get_variable("v_2", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0),trainable=True)
+filter2_1_x = tf.get_variable("v_2", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0))#,trainable=True)
 
 output2_1_x_temp = tf.nn.conv1d(output1_1_x, filter2_1_x, stride=2, padding="VALID")
 
@@ -97,11 +97,11 @@ output2_1_x = tf.cond(tf.shape(output2_1_x_temp)[1] >= 200, lambda: tf.slice(out
 input1_2_x = tf.expand_dims([reordered_points_two_x[:,2]],2)
 
 
-filter1_2_x = tf.get_variable("v_3", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0),trainable=True)
+filter1_2_x = tf.get_variable("v_3", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
 output1_2_x = tf.nn.conv1d(input1_2_x, filter1_2_x, stride=2, padding="VALID")
 
-filter2_2_x = tf.get_variable("v_4", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0),trainable=True)
+filter2_2_x = tf.get_variable("v_4", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
 output2_2_x_temp= tf.nn.conv1d(output1_2_x, filter2_2_x, stride=2, padding="VALID")
 
@@ -112,11 +112,11 @@ output2_2_x = tf.cond(tf.shape(output2_2_x_temp)[1] >= 200, lambda: tf.slice(out
 input1_1_y = tf.expand_dims([reordered_points_one_y[:,2]],2)
 
 
-filter1_1_y = tf.get_variable("v_5", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0),trainable=True)
+filter1_1_y = tf.get_variable("v_5", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
 output1_1_y = tf.nn.conv1d(input1_1_y, filter1_1_y, stride=2, padding="VALID")
 
-filter2_1_y = tf.get_variable("v_6", [3, 10, 20],initializer=tf.random_normal_initializer(seed=0),trainable=True)
+filter2_1_y = tf.get_variable("v_6", [3, 10, 20],initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
 output2_1_y_temp = tf.nn.conv1d(output1_1_y, filter2_1_y, stride=2, padding="VALID")
 
@@ -128,11 +128,11 @@ output2_1_y = tf.cond(tf.shape(output2_1_y_temp)[1] >= 200, lambda: tf.slice(out
 input1_2_y = tf.expand_dims([reordered_points_two_y[:,2]],2)
 
 
-filter1_2_y = tf.get_variable("v_7", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0),trainable=True)
+filter1_2_y = tf.get_variable("v_7", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
 output1_2_y = tf.nn.conv1d(input1_2_y, filter1_2_y, stride=2, padding="VALID")
 
-filter2_2_y = tf.get_variable("v_8", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0),trainable=True)
+filter2_2_y = tf.get_variable("v_8", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
 output2_2_y_temp = tf.nn.conv1d(output1_2_y, filter2_2_y, stride=2, padding="VALID")
 
@@ -148,7 +148,7 @@ output2_2_y = tf.cond(tf.shape(output2_2_y_temp)[1] >= 200, lambda: tf.slice(out
 concat_layer = tf.reshape(tf.concat([output2_1_x ,output2_2_x,output2_1_y,output2_2_y ], axis = 0), [1, 16000])
 
 
-rot_angles = tf.layers.dense(concat_layer,27, trainable=False)
+rot_angles = tf.layers.dense(concat_layer,27)#, trainable=False)
 #rot_angles_ = tf.reshape(rot_angles, [3,3,3])
 
 # rotation_matrix_one = tf.squeeze(tf.slice(rot_angles_, [0,0,0], [1,-1,-1]),squeeze_dims=[0])
@@ -242,7 +242,7 @@ def atan2(y, x):
 
 r_one_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_one), axis=1, keepdims = True))
 r_one = tf.divide(r_one_temp,tf.reduce_max(r_one_temp, axis = 0, keep_dims = True))
-theta_one = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one,0.001)), 0.99))
+theta_one = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one_temp,0.001)),0.99),-0.99))
 phi_one = tf.atan2(tf.expand_dims(calibrated_points_one[:,1],1),tf.expand_dims(calibrated_points_one[:,0],1))
 
 
@@ -250,14 +250,14 @@ r_two_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1,
 r_two = tf.divide(r_two_temp,tf.reduce_max(r_two_temp, axis = 0, keep_dims = True))
 
 #r_two = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1, keepdims = True))
-theta_two = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two,0.001)), 0.99))
+theta_two = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two_temp,0.001)),0.99),-0.99))
 phi_two = tf.atan2(tf.expand_dims(calibrated_points_two[:,1],1),tf.expand_dims(calibrated_points_two[:,0],1))
 
 r_three_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
 r_three = tf.divide(r_three_temp,tf.reduce_max(r_three_temp, axis = 0, keep_dims = True))
 
 #r_three = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
-theta_three = tf.acos(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three,0.001)), 0.99))
+theta_three = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three_temp,0.001)),0.99),-0.99))
 phi_three  = tf.atan2(tf.expand_dims(calibrated_points_three [:,1],1),tf.expand_dims(calibrated_points_three [:,0],1))
 
 
@@ -366,23 +366,91 @@ X_modified = tf.cond(tf.shape(X_)[1] >= 200, lambda: tf.slice(X_, [0,0,0], [-1,2
 #print(s1)
 #print(u1)
 #print(v1)
-#print(r)
+#print(r)\
+
+x_rehape = tf.reshape(X_modified,[3,10,20,20])
+
+alpha = 1.0/tf.maximum(tf.reduce_sum(tf.square(x_rehape),[2,3]),0.0001)
+
+alpha_tiled = tf.tile(tf.reshape(alpha,[3,10,1,1]), [1,1,20,20])
+X_0  = tf.multiply(alpha_tiled,tf.transpose(x_rehape,[0,1,3,2] ))
+
+#def body(i):
+#	x  = tf.matmul(x, 2.0 *tf.eye(20) - tf.matmul(x_rehape,x))   
+ 
+#	return [tf.add(i,1)]
+
+#def condition_1(i):
+#	return tf.less(i,20)
+
+#X_cal, p = tf.while_loop(lambda x, i: i < 70,
+#    lambda x, i: ( tf.matmul(x, 2.0 *tf.eye(20) - tf.matmul(x_rehape,x)), i+1),
+#    (X_0, 0))
 
 
-B_1 = tf.matrix_solve_ls(tf.slice(X_modified, [0,0,0],[-1,20,-1]),tf.slice(r_modified,[0,0,0],[-1,20,-1]))
-B_2 = tf.matrix_solve_ls(tf.slice(X_modified, [0,20,0],[-1,20,-1]),tf.slice(r_modified,[0,20,0],[-1,20,-1]))
-B_3 = tf.matrix_solve_ls(tf.slice(X_modified, [0,40,0],[-1,20,-1]),tf.slice(r_modified,[0,40,0],[-1,20,-1]))
-B_4 = tf.matrix_solve_ls(tf.slice(X_modified, [0,60,0],[-1,20,-1]),tf.slice(r_modified,[0,60,0],[-1,20,-1]))
-B_5 = tf.matrix_solve_ls(tf.slice(X_modified, [0,80,0],[-1,20,-1]),tf.slice(r_modified,[0,80,0],[-1,20,-1]))
-B_6 = tf.matrix_solve_ls(tf.slice(X_modified, [0,100,0],[-1,20,-1]),tf.slice(r_modified,[0,100,0],[-1,20,-1]))
-B_7 = tf.matrix_solve_ls(tf.slice(X_modified, [0,120,0],[-1,20,-1]),tf.slice(r_modified,[0,120,0],[-1,20,-1]))
-B_8 = tf.matrix_solve_ls(tf.slice(X_modified, [0,140,0],[-1,20,-1]),tf.slice(r_modified,[0,140,0],[-1,20,-1]))
-B_9 = tf.matrix_solve_ls(tf.slice(X_modified, [0,160,0],[-1,20,-1]),tf.slice(r_modified,[0,160,0],[-1,20,-1]))
-B_10 = tf.matrix_solve_ls(tf.slice(X_modified, [0,180,0],[-1,20,-1]),tf.slice(r_modified,[0,180,0],[-1,20,-1]))
+X_cal, p = tf.while_loop(lambda x, i: i < 5,
+    lambda x, i:( tf.matmul( tf.eye(20) + 1.0/4.0 * tf.matmul(tf.eye(20)-tf.matmul(x,x_rehape),tf.matmul(3.0*tf.eye(20)-tf.matmul(x,x_rehape),3.0*tf.eye(20)-tf.matmul(x,x_rehape))),x), i+1),
+    (X_0, 0))
+
+#X_cal, p = tf.while_loop(condition_1,body,[0])
+e_1 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_0))))
+
+#X_1 = tf.matmul(X_0, 2.0 *tf.eye(20) - tf.matmul(x_rehape,X_0))
+#e_1 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_1))))
+
+#X_2 = tf.matmul(X_1, 2.0 *tf.eye(20) - tf.matmul(x_rehape,X_1))
+#e_2 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_2))))
+
+#X_3 = tf.matmul(X_2, 2.0 *tf.eye(20) - tf.matmul(x_rehape,X_2))
+#e_3 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_3))))
+
+#X_4 = tf.matmul(X_3, 2.0 *tf.eye(20) - tf.matmul(x_rehape,X_3))
+#e_4 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_1))))
+
+#X_5 = tf.matmul(X_4, 2.0 *tf.eye(20) - tf.matmul(x_rehape,X_4))
+#e_5 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_5))))
 
 
 
 
+
+B_1 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,0,0],[-1,20,-1])),tf.slice(r_modified,[0,0,0],[-1,20,-1]))
+B_2 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,20,0],[-1,20,-1])),tf.slice(r_modified,[0,20,0],[-1,20,-1]))
+B_3 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,40,0],[-1,20,-1])),tf.slice(r_modified,[0,40,0],[-1,20,-1]))
+B_4 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,60,0],[-1,20,-1])),tf.slice(r_modified,[0,60,0],[-1,20,-1]))
+B_5 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,80,0],[-1,20,-1])),tf.slice(r_modified,[0,80,0],[-1,20,-1]))
+B_6 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,100,0],[-1,20,-1])),tf.slice(r_modified,[0,100,0],[-1,20,-1]))
+B_7 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,120,0],[-1,20,-1])),tf.slice(r_modified,[0,120,0],[-1,20,-1]))
+B_8 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,140,0],[-1,20,-1])),tf.slice(r_modified,[0,140,0],[-1,20,-1]))
+B_9 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,160,0],[-1,20,-1])),tf.slice(r_modified,[0,160,0],[-1,20,-1]))
+B_10 = tf.matmul(tf.matrix_inverse(tf.slice(X_modified, [0,180,0],[-1,20,-1])),tf.slice(r_modified,[0,180,0],[-1,20,-1]))
+
+
+
+
+
+
+
+
+
+
+
+
+#B_2 = tf.matrix_solve_ls(tf.slice(X_modified, [0,20,0],[-1,20,-1]),tf.slice(r_modified,[0,20,0],[-1,20,-1]))
+#B_3 = tf.matrix_solve_ls(tf.slice(X_modified, [0,40,0],[-1,20,-1]),tf.slice(r_modified,[0,40,0],[-1,20,-1]))
+#B_4 = tf.matrix_solve_ls(tf.slice(X_modified, [0,60,0],[-1,20,-1]),tf.slice(r_modified,[0,60,0],[-1,20,-1]))
+#B_5 = tf.matrix_solve_ls(tf.slice(X_modified, [0,80,0],[-1,20,-1]),tf.slice(r_modified,[0,80,0],[-1,20,-1]))
+#B_6 = tf.matrix_solve_ls(tf.slice(X_modified, [0,100,0],[-1,20,-1]),tf.slice(r_modified,[0,100,0],[-1,20,-1]))
+#B_7 = tf.matrix_solve_ls(tf.slice(X_modified, [0,120,0],[-1,20,-1]),tf.slice(r_modified,[0,120,0],[-1,20,-1]))
+#B_8 = tf.matrix_solve_ls(tf.slice(X_modified, [0,140,0],[-1,20,-1]),tf.slice(r_modified,[0,140,0],[-1,20,-1]))
+#B_9 = tf.matrix_solve_ls(tf.slice(X_modified, [0,160,0],[-1,20,-1]),tf.slice(r_modified,[0,160,0],[-1,20,-1]))
+#B_10 = tf.matrix_solve_ls(tf.slice(X_modified, [0,180,0],[-1,20,-1]),tf.slice(r_modified,[0,180,0],[-1,20,-1]))
+
+
+
+r_modified_reshape = tf.reshape(r_modified,[3,10,20,1])
+
+B = tf.matmul(X_cal,r_modified_reshape)
 
 
 
@@ -399,7 +467,7 @@ B_10 = tf.matrix_solve_ls(tf.slice(X_modified, [0,180,0],[-1,20,-1]),tf.slice(r_
 #B_9 = tf.matmul(v9,tf.divide(tf.slice(tf.matmul(tf.transpose(u9, perm=[0, 2, 1]),tf.slice(r_modified,[0,160,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s9,[[[0.001]]])))
 #B_10 = tf.matmul(v10,tf.divide(tf.slice(tf.matmul(tf.transpose(u10, perm=[0, 2, 1]),tf.slice(r_modified,[0,180,0],[-1,20,-1])), [0,0,0], [-1,20,-1]),tf.maximum(s10,[[[0.001]]])))
 
-B = tf.concat([B_1, B_2, B_3, B_4, B_5, B_6, B_7, B_8, B_9, B_10], axis = 1)
+# = tf.concat([B_1, B_2, B_3, B_4, B_5, B_6, B_7, B_8, B_9, B_10], axis = 1)
 
 # estimate = tf.matmul(X,B)
 # print(B)
@@ -551,11 +619,11 @@ L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
            name="L")
 
 
-#loss = tf.losses.softmax_cross_entropy(T,caps2_output_norm)
-loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
+loss = tf.losses.softmax_cross_entropy(T,caps2_output_norm)
+#loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
 
-optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.01)
-grads = optimizer.compute_gradients(loss)
+optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0001)
+#grads = optimizer.compute_gradients(loss)
 training_op = optimizer.minimize(loss, name="training_op")
 
 config = tf.ConfigProto()
@@ -614,9 +682,10 @@ for filename in glob.glob(os.path.join('/home/ram095/sameera/3d_obj/code/3D_obje
 	f = open(filename, 'r')
 	print(filename)
 	points, y_annot = read_datapoint(f, filename)
-	points_ = sess.run(grads, feed_dict = {y:y_annot, raw_points_init:points})
+	points_ = sess.run(theta, feed_dict = {y:y_annot, raw_points_init:points})
 	print(points_)
-	input("Press Enter to continue...")
+
+#	input("Press Enter to continue...")
   #print(t)
 	_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points})
 	print(loss_train)
