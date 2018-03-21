@@ -21,7 +21,7 @@ adjoint_mat = tf.matmul(tf.transpose(centered_points_expanded, [0,2,1]), centere
 
 e,ev = tf.self_adjoint_eig(adjoint_mat, name="eigendata")
 
-normal_vec = ev[:,:,2]
+normal_vec = ev[:,:,0]
 normalized_normal_vec = tf.nn.l2_normalize(normal_vec, axis = 1)
 
 
@@ -595,9 +595,9 @@ for filename in glob.glob(os.path.join('/home/ram095/sameera/3d_obj/code/3D_obje
 	f = open(filename, 'r')
 	print(filename)
 	points, y_annot = read_datapoint(f, filename)
-	points_ = sess.run(grads, feed_dict = {y:y_annot, raw_points_init:points})
+	points_ = sess.run(caps2_output_norm, feed_dict = {y:y_annot, raw_points_init:points})
 	print(points_)
-	input("Press Enter to continue...")
+#	input("Press Enter to continue...")
   #print(t)
 	_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points})
 	print(loss_train)
