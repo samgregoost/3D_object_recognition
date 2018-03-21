@@ -21,7 +21,9 @@ adjoint_mat = tf.matmul(tf.transpose(centered_points_expanded, [0,2,1]), centere
 
 e,ev = tf.self_adjoint_eig(adjoint_mat, name="eigendata")
 
-normal_vec = ev[:,:,2]
+
+
+normal_vec = ev[:,:,0]
 normalized_normal_vec = tf.nn.l2_normalize(normal_vec, axis = 1)
 
 
@@ -85,11 +87,11 @@ input1_1_x = tf.expand_dims([reordered_points_one_x[:,2]],2)
 
 filter1_1_x = tf.get_variable("v_1", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0))#, trainable=True)
 
-output1_1_x = tf.nn.conv1d(input1_1_x, filter1_1_x, stride=2, padding="VALID")
+output1_1_x = tf.nn.conv1d(input1_1_x, filter1_1_x, stride=2, padding="SAME")
 
 filter2_1_x = tf.get_variable("v_2", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0))#,trainable=True)
 
-output2_1_x_temp = tf.nn.conv1d(output1_1_x, filter2_1_x, stride=2, padding="VALID")
+output2_1_x_temp = tf.nn.conv1d(output1_1_x, filter2_1_x, stride=2, padding="SAME")
 
 output2_1_x = tf.cond(tf.shape(output2_1_x_temp)[1] >= 200, lambda: tf.slice(output2_1_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_x_temp, tf.zeros([1,200-tf.shape(output2_1_x_temp)[1],20])], axis = 1))
 
@@ -99,11 +101,11 @@ input1_2_x = tf.expand_dims([reordered_points_two_x[:,2]],2)
 
 filter1_2_x = tf.get_variable("v_3", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
-output1_2_x = tf.nn.conv1d(input1_2_x, filter1_2_x, stride=2, padding="VALID")
+output1_2_x = tf.nn.conv1d(input1_2_x, filter1_2_x, stride=2, padding="SAME")
 
 filter2_2_x = tf.get_variable("v_4", [3, 10, 20], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
-output2_2_x_temp= tf.nn.conv1d(output1_2_x, filter2_2_x, stride=2, padding="VALID")
+output2_2_x_temp= tf.nn.conv1d(output1_2_x, filter2_2_x, stride=2, padding="SAME")
 
 output2_2_x = tf.cond(tf.shape(output2_2_x_temp)[1] >= 200, lambda: tf.slice(output2_2_x_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_2_x_temp, tf.zeros([1,200-tf.shape(output2_2_x_temp)[1],20])], axis = 1))
 
@@ -114,11 +116,11 @@ input1_1_y = tf.expand_dims([reordered_points_one_y[:,2]],2)
 
 filter1_1_y = tf.get_variable("v_5", [6, 1, 10], initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
-output1_1_y = tf.nn.conv1d(input1_1_y, filter1_1_y, stride=2, padding="VALID")
+output1_1_y = tf.nn.conv1d(input1_1_y, filter1_1_y, stride=2, padding="SAME")
 
 filter2_1_y = tf.get_variable("v_6", [3, 10, 20],initializer=tf.random_normal_initializer(seed=0))#,trainable=False)
 
-output2_1_y_temp = tf.nn.conv1d(output1_1_y, filter2_1_y, stride=2, padding="VALID")
+output2_1_y_temp = tf.nn.conv1d(output1_1_y, filter2_1_y, stride=2, padding="SAME")
 
 output2_1_y = tf.cond(tf.shape(output2_1_y_temp)[1] >= 200, lambda: tf.slice(output2_1_y_temp, [0,0,0], [-1,200,-1]), lambda: tf.concat([output2_1_y_temp, tf.zeros([1,200-tf.shape(output2_1_y_temp)[1],20])], axis = 1))
 
@@ -373,7 +375,12 @@ x_rehape = tf.reshape(X_modified,[3,10,20,20])
 alpha = 1.0/tf.maximum(tf.reduce_sum(tf.square(x_rehape),[2,3]),0.0001)
 
 alpha_tiled = tf.tile(tf.reshape(alpha,[3,10,1,1]), [1,1,20,20])
-X_0  = tf.multiply(alpha_tiled,tf.transpose(x_rehape,[0,1,3,2] ))
+#X_0  = tf.multiply(alpha_tiled,tf.transpose(x_rehape,[0,1,3,2] ))
+
+X_0  = 0.01 * tf.transpose(x_rehape,[0,1,3,2] )
+
+e_val,ev = tf.self_adjoint_eig(tf.matmul(tf.transpose(x_rehape,[0,1,3,2]),x_rehape), name="eigendata")
+
 
 #def body(i):
 #	x  = tf.matmul(x, 2.0 *tf.eye(20) - tf.matmul(x_rehape,x))   
@@ -389,11 +396,11 @@ X_0  = tf.multiply(alpha_tiled,tf.transpose(x_rehape,[0,1,3,2] ))
 
 
 X_cal, p = tf.while_loop(lambda x, i: i < 10,
-    lambda x, i:( tf.matmul( tf.eye(20) + 1.0/4.0 * tf.matmul(tf.eye(20)-tf.matmul(x,x_rehape),tf.matmul(3.0*tf.eye(20)-tf.matmul(x,x_rehape),3.0*tf.eye(20)-tf.matmul(x,x_rehape))),x), i+1),
-    (X_0, 0))
+    lambda x, i:( tf.matmul( tf.eye(20) + 1.0/4.0 * tf.matmul(tf.eye(20)-tf.matmul(x,x_rehape),tf.matmul(3.0*tf.eye(20)-tf.matmul(x,x_rehape),3.0*tf.eye(20)-tf.matmul(x,x_rehape))),x),i+1)
+    ,(X_0, 0))
 
 #X_cal, p = tf.while_loop(condition_1,body,[0])
-e_1 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_0))))
+e_1 = tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_cal)),axis=[2,3])))
 
 #X_1 = tf.matmul(X_0, 2.0 *tf.eye(20) - tf.matmul(x_rehape,X_0))
 #e_1 = tf.sqrt(tf.reduce_sum(tf.square(tf.eye(20) - tf.matmul(x_rehape,X_1))))
@@ -682,7 +689,7 @@ for filename in glob.glob(os.path.join('/home/ram095/sameera/3d_obj/code/3D_obje
 	f = open(filename, 'r')
 	print(filename)
 	points, y_annot = read_datapoint(f, filename)
-	points_ = sess.run(theta, feed_dict = {y:y_annot, raw_points_init:points})
+	points_ = sess.run(e_1, feed_dict = {y:y_annot, raw_points_init:points})
 	print(points_)
 
 #	input("Press Enter to continue...")
