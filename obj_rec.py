@@ -201,6 +201,11 @@ calibrated_points_one = trasformed_points_one_reshaped_
 
 
 
+
+
+
+
+
 trasformed_points_two_reshaped_ = tf.reshape(trasformed_points_two_reshaped, [-1, 3])
 
 #point_distance_two = tf.reduce_sum(tf.square(trasformed_points_two_reshaped_), axis=1, keepdims = True)
@@ -233,9 +238,44 @@ calibrated_points_three = trasformed_points_three_reshaped_
 calibrated_points_one_corrected_shape = tf.reshape(calibrated_points_one, [-1, point_count, 3])
 
 
-centered_calib_points_one = tf.subtract(calibrated_points_one,tf.reduce_mean(calibrated_points_one,axis=0,keep_dims=True))
-centered_calib_points_two = tf.subtract(calibrated_points_two,tf.reduce_mean(calibrated_points_two,axis=0,keep_dims=True))
-centered_calib_points_three = tf.subtract(calibrated_points_three,tf.reduce_mean(calibrated_points_three,axis=0,keep_dims=True))
+centered_calib_points_one_temp  = tf.subtract(calibrated_points_one,tf.reduce_mean(calibrated_points_one,axis=0,keep_dims=True))
+centered_calib_points_two_temp = tf.subtract(calibrated_points_two,tf.reduce_mean(calibrated_points_two,axis=0,keep_dims=True))
+centered_calib_points_three_temp  = tf.subtract(calibrated_points_three,tf.reduce_mean(calibrated_points_three,axis=0,keep_dims=True))
+
+mask_one  = tf.greater(centered_calib_points_one_temp[:,2],0)
+
+centered_calib_points_one_t  = tf.boolean_mask(centered_calib_points_one_temp, mask_one)
+
+mask_two  = tf.greater(centered_calib_points_two_temp[:,2],0)
+
+centered_calib_points_two_t  = tf.boolean_mask(centered_calib_points_two_temp, mask_two)
+
+mask_three  = tf.greater(centered_calib_points_three_temp[:,2],0)
+
+centered_calib_points_three_t  = tf.boolean_mask(centered_calib_points_three_temp, mask_three)
+
+
+centered_calib_points_one  = tf.cond(tf.shape(centered_calib_points_one_t )[0] >= 200, lambda: tf.slice(centered_calib_points_one_t , [0,0], [200,-1]), lambda: tf.concat([centered_calib_points_one_t, tf.zeros([200-tf.shape(centered_calib_points_one_t)[0],3])], axis = 0))
+centered_calib_points_two = tf.cond(tf.shape(centered_calib_points_two_t )[0] >= 200, lambda: tf.slice(centered_calib_points_two_t , [0,0], [200,-1]), lambda: tf.concat([centered_calib_points_two_t, tf.zeros([200-tf.shape(centered_calib_points_two_t)[0],3])], axis = 0))
+centered_calib_points_three = tf.cond(tf.shape(centered_calib_points_three_t )[0] >= 200, lambda: tf.slice(centered_calib_points_three_t , [0,0], [200,-1]), lambda: tf.concat([centered_calib_points_three_t, tf.zeros([200-tf.shape(centered_calib_points_three_t)[0],3])], axis = 0))
+
+
+dist_12 = -1.0 * tf.log(tf.reduce_sum(tf.sqrt(tf.multiply(centered_calib_points_one[:,2], centered_calib_points_two[:,2])+0.0001)))
+dist_13 = -1.0 * tf.log(tf.reduce_sum(tf.sqrt(tf.multiply(centered_calib_points_one[:,2], centered_calib_points_three[:,2])+0.0001)))
+dist_23 = -1.0 * tf.log(tf.reduce_sum(tf.sqrt(tf.multiply(centered_calib_points_three[:,2], centered_calib_points_two[:,2])+ 0.0001)))
+
+_, var_1 = tf.nn.moments(centered_calib_points_one[:,2], axes = [0])
+_, var_2 = tf.nn.moments(centered_calib_points_two[:,2], axes = [0])
+_, var_3 = tf.nn.moments(centered_calib_points_three[:,2], axes = [0])
+
+
+
+sim_term = -1.0 * (dist_12 + dist_13  + dist_23)/3
+info_term = -1.0 * (tf.sqrt(var_1) + tf.sqrt(var_2) + tf.sqrt(var_3))/3
+
+rot_loss = 0.01 *  sim_term + 0.03 * info_term
+
+
 
 def atan2(y, x):
     angle = tf.select(tf.greater(x,0.0), tf.atan(y/x), tf.zeros_like(x))
@@ -249,26 +289,28 @@ def atan2(y, x):
 
 r_one_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_one), axis=1, keepdims = True))
 r_one = tf.divide(r_one_temp,tf.reduce_max(r_one_temp, axis = 0, keep_dims = True))
-theta_one = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_one[:,2],1), tf.maximum(r_one_temp,0.001)),0.99),-0.99))
-phi_one = tf.atan2(tf.expand_dims(calibrated_points_one[:,1],1),tf.expand_dims(calibrated_points_one[:,0],1))
+theta_one = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(centered_calib_points_one[:,2],1), tf.maximum(r_one_temp,0.001)),0.99),-0.99))
+phi_one = tf.atan2(tf.expand_dims(centered_calib_points_one[:,1],1),tf.expand_dims(centered_calib_points_one[:,0],1))
 
 
 r_two_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1, keepdims = True))
 r_two = tf.divide(r_two_temp,tf.reduce_max(r_two_temp, axis = 0, keep_dims = True))
 
 #r_two = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_two), axis=1, keepdims = True))
-theta_two = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_two[:,2],1), tf.maximum(r_two_temp,0.001)),0.99),-0.99))
-phi_two = tf.atan2(tf.expand_dims(calibrated_points_two[:,1],1),tf.expand_dims(calibrated_points_two[:,0],1))
+theta_two = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(centered_calib_points_two[:,2],1), tf.maximum(r_two_temp,0.001)),0.99),-0.99))
+phi_two = tf.atan2(tf.expand_dims(centered_calib_points_two[:,1],1),tf.expand_dims(centered_calib_points_two[:,0],1))
 
 r_three_temp = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
 r_three = tf.divide(r_three_temp,tf.reduce_max(r_three_temp, axis = 0, keep_dims = True))
 
 #r_three = tf.sqrt(tf.reduce_sum(tf.square(centered_calib_points_three), axis=1, keepdims = True))
-theta_three = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(calibrated_points_three [:,2],1), tf.maximum(r_three_temp,0.001)),0.99),-0.99))
-phi_three  = tf.atan2(tf.expand_dims(calibrated_points_three [:,1],1),tf.expand_dims(calibrated_points_three [:,0],1))
+theta_three = tf.acos(tf.maximum(tf.minimum(tf.divide(tf.expand_dims(centered_calib_points_three [:,2],1), tf.maximum(r_three_temp,0.001)),0.99),-0.99))
+phi_three  = tf.atan2(tf.expand_dims(centered_calib_points_three [:,1],1),tf.expand_dims(centered_calib_points_three [:,0],1))
 
 
 ########################################################################################
+
+
 
 r = tf.stack([r_one, r_two, r_three])
 theta = tf.stack([theta_one, theta_two, theta_three])
@@ -510,8 +552,13 @@ init_sigma = 0.01
 # train = optimizer.apply_gradients(grads)
 
 
-caps1_raw = tf.reshape(B, [-1, 60, 10],
+caps1_raw_temp = tf.reshape(B, [-1, 60, 10],
                        name="caps1_raw")
+
+caps1_raw =  tf.nn.l2_normalize(caps1_raw_temp,axis = 1)
+
+
+
 def squash(s, axis=-1, epsilon=1e-7, name=None):
     with tf.name_scope(name, default_name="squash"):
         squared_norm = tf.reduce_sum(tf.square(s), axis=axis,
@@ -521,7 +568,8 @@ def squash(s, axis=-1, epsilon=1e-7, name=None):
         unit_vector = s / safe_norm
         return squash_factor * unit_vector
       
-caps1_output = squash(caps1_raw, name="caps1_output")
+#caps1_output = squash(caps1_raw, name="caps1_output")
+caps1_output = caps1_raw
 
 caps2_n_caps = 2
 caps2_n_dims = 16
@@ -531,6 +579,8 @@ W_init = tf.random_normal(
     shape=(1, 60, 2, 16, 10),
     stddev=init_sigma, dtype=tf.float32, name="W_init")
 W = tf.Variable(W_init, name="W")
+
+
 
 batch_size = 1
 W_tiled = tf.tile(W, [batch_size, 1, 1, 1, 1], name="W_tiled")
@@ -563,10 +613,10 @@ weighted_sum = tf.reduce_sum(weighted_predictions, axis=1, keep_dims=True,
                              name="weighted_sum")
 
 
-caps2_output_round_1 = squash(weighted_sum, axis=-2,
-                              name="caps2_output_round_1")
+#caps2_output_round_1 = squash(weighted_sum, axis=-2,
+#                              name="caps2_output_round_1")
 
-
+caps2_output_round_1 = weighted_sum
 
 
 caps2_output_round_1_tiled = tf.tile(
@@ -594,8 +644,8 @@ caps2_output_round_2 = squash(weighted_sum_round_2,
                               name="caps2_output_round_2")
 
 
-caps2_output = caps2_output_round_2
-
+#caps2_output = caps2_output_round_2
+caps2_output =weighted_sum_round_2
 
 
 def safe_norm(s, axis=-1, epsilon=1e-7, keep_dims=False, name=None):
@@ -631,8 +681,8 @@ L = tf.add(T * present_error, lambda_ * (1.0 - T) * absent_error,
            name="L")
 
 
-#loss = tf.losses.softmax_cross_entropy(T,caps2_output_norm)
-loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
+loss = tf.losses.softmax_cross_entropy(T,caps2_output_norm)
+#loss = tf.reduce_mean(tf.reduce_sum(L, axis=1), name="margin_loss")
 
 
 trainable_vars = tf.trainable_variables()
@@ -645,10 +695,11 @@ caps_vars =  [var for var in trainable_vars if 'a_' not  in var.name]
 
 optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.1)
 grads = optimizer.compute_gradients(loss, var_list = caps_vars)
-training_op = optimizer.minimize(loss, name="training_op",  var_list = caps_vars)
+training_op = optimizer.minimize(loss, name="training_op")#,  var_list = caps_vars)
 
-optimizer_2 =  tf.train.GradientDescentOptimizer(learning_rate=0.0001)
-training_op_2 = optimizer_2.minimize(loss, name="training_op_2", var_list= rot_vars)
+optimizer_2 =  tf.train.GradientDescentOptimizer(learning_rate=0.1)
+grads_2 = optimizer_2.compute_gradients(rot_loss, var_list = rot_vars)
+training_op_2 = optimizer_2.minimize(rot_loss, name="training_op_2", var_list = rot_vars)
 
 
 config = tf.ConfigProto()
@@ -707,15 +758,15 @@ saver = tf.train.Saver()
 training_files = '/home/ram095/sameera/3d_obj/code/3D_object_recognition/test/train/'
 testing_files = '/home/ram095/sameera/3d_obj/code/3D_object_recognition/test_op/'
 
-#saver.restore(sess, "./model.ckpt")
-
+saver.restore(sess, "./model.ckpt")
+loss_train_vals = []
 loss_vals = []
 acc_vals = []
 file_names = []
 main_itr = 0
 #np.set_printoptions(threshold=np.nan)
 for j in range(10):
-	for filename in glob.glob(os.path.join(training_files, '*.off')):
+	for filename in glob.glob(os.path.join(testing_files, '*.off')):
 		main_itr = main_itr+1
 		f = open(filename, 'r')
 		print(filename)
@@ -735,19 +786,27 @@ for j in range(10):
 		#points = sorted_data[row_mask]
 		#points = np.unique(points_raw, axis=0)
 		#print(points)
-		#points_ = sess.run(reordered_points_one_x, feed_dict = {y:y_annot, raw_points_init:points})
+		#points_ = sess.run(info_term, feed_dict = {y:y_annot, raw_points_init:points})
 		#print(points_)
-		points_ = sess.run(B, feed_dict = {y:y_annot, raw_points_init:points})
-                print(points_)
+		#points_ = sess.run(sim_term, feed_dict = {y:y_annot, raw_points_init:points})
+                #print(points_)
 		print(j)
-		print("outer_loop")
-		_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points})
-		print(loss_train)
+		#print("outer_loop")
+		#for k in range(1):
+		#	_, rot_loss_ = sess.run([training_op_2, rot_loss], feed_dict = {y:y_annot, raw_points_init:points})
+		#	print("loss rot")
+		#	print(rot_loss_)
+	#	points_ = sess.run(r, feed_dict = {y:y_annot, raw_points_init:points})
+                #print(np.isnan(points_).any())
 
+		#_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points})
+		#print(loss_train)
+		#loss_train_vals.append(loss_train)
+		#print(np.mean(loss_train_vals))
 	#	input("Press Enter to continue...")
 	
   #print(t)	
-		if False: # main_itr % 10==0:
+		if False:# main_itr % 10==0:
 			for filename in file_names:
 				print("inner_loop")
 				f = open(filename, 'r')
@@ -759,25 +818,27 @@ for j in range(10):
                 		l.sort()
                 		unique = [x for i, x in enumerate(l) if not i or x != l[i-1]]
                			points  = np.asarray(unique)
+				points =np.vstack(set(map(tuple, points_raw)))
+
 
 				_, loss_train = sess.run([training_op, loss], feed_dict = {y:y_annot, raw_points_init:points})
 				print(loss_train)
 		#saver.save(sess, "./model.ckpt")
 			file_names = []
 
-	saver.save(sess, "./model.ckpt")
+	#saver.save(sess, "./model.ckpt")
 
-		#loss_val, acc_val = sess.run(
-	         #           [loss, accuracy], feed_dict = {y:y_annot, raw_points_init:points})
-		#loss_vals.append(loss_val)
-	       # acc_vals.append(acc_val)	
-		#print(acc_val)
+		loss_val, acc_val = sess.run(
+	                   [loss, accuracy], feed_dict = {y:y_annot, raw_points_init:points})
+		loss_vals.append(loss_val)
+	       	acc_vals.append(acc_val)	
+		print(acc_val)
 
-		#acc_val = np.mean(acc_vals)
-		#print(acc_val)
+		acc_val = np.mean(acc_vals)
+		print(acc_val)
+	#saver.save(sess, "./model.ckpt")  
   
-  
-saver.save(sess, "./model.ckpt")
+#saver.save(sess, "./model.ckpt")
 
 # for itr in xrange(100000000):
 #             # train_images, train_annotations = train_dataset_reader.next_batch(FLAGS.batch_size)
