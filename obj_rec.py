@@ -571,12 +571,12 @@ def squash(s, axis=-1, epsilon=1e-7, name=None):
 #caps1_output = squash(caps1_raw, name="caps1_output")
 caps1_output = caps1_raw
 
-caps2_n_caps = 2
+caps2_n_caps = 10
 caps2_n_dims = 16
 
 
 W_init = tf.random_normal(
-    shape=(1, 60, 2, 16, 10),
+    shape=(1, 60, 10, 16, 10),
     stddev=init_sigma, dtype=tf.float32, name="W_init")
 W = tf.Variable(W_init, name="W")
 
@@ -666,7 +666,7 @@ lambda_ = 0.5
 T = tf.one_hot(y, depth=caps2_n_caps, name="T")
 
 caps2_output_norm = tf.reshape(safe_norm(caps2_output, axis=-2, keep_dims=True,
-                              name="caps2_output_norm"), [-1,2])
+                              name="caps2_output_norm"), [-1,10])
 
 present_error_raw = tf.square(tf.maximum(0., m_plus - caps2_output_norm),
                               name="present_error_raw")
@@ -746,8 +746,24 @@ def read_datapoint(data, filename):
     if 'OFF' != line.strip() and len([float(s) for s in line.strip().split(' ')]) == 3: 
         if 'bathtub' in filename:
            y = [0]
-        else:
+        if 'bed' in filename:
            y=[1]
+	if 'chair' in filename:
+	   y=[2]
+	if 'desk' in filename:
+           y=[3]
+	if 'dresser' in filename:
+           y=[4]
+	if 'monitor' in filename:
+           y=[5]
+	if 'night_stand' in filename:
+           y=[6]
+	if 'sofa' in filename:
+           y=[7]
+	if 'table' in filename:
+           y=[8]
+	if 'toilet' in filename:
+           y=[9]	
         points_list = [float(s) for s in line.strip().split(' ')]
         points = np.append(points,np.expand_dims(np.array(points_list), axis=0), axis = 0)
     
@@ -765,7 +781,7 @@ acc_vals = []
 file_names = []
 main_itr = 0
 #np.set_printoptions(threshold=np.nan)
-for j in range(10):
+for j in range(1):
 	for filename in glob.glob(os.path.join(testing_files, '*.off')):
 		main_itr = main_itr+1
 		f = open(filename, 'r')
@@ -790,7 +806,7 @@ for j in range(10):
 		#print(points_)
 		#points_ = sess.run(sim_term, feed_dict = {y:y_annot, raw_points_init:points})
                 #print(points_)
-		print(j)
+		#print(j)
 		#print("outer_loop")
 		#for k in range(1):
 		#	_, rot_loss_ = sess.run([training_op_2, rot_loss], feed_dict = {y:y_annot, raw_points_init:points})
